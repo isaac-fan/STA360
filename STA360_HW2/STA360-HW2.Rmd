@@ -1,0 +1,80 @@
+---
+title: "HW2"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r theta}
+theta <- c(0,.1,.2,.3,.4,.5,.6,.7,.8,.9,1)
+```
+
+
+
+```{r prob}
+#P(Y=57 | theta)
+prob <- c(0,0,0,0,0,0,0,0,0,0,0)
+for (i in 1:11)
+{
+prob[i] <- theta[i]^57 * (1-theta[i])^43
+}
+prob
+```
+
+## Part B
+
+```{r plot}
+plot(x = theta, y = prob, ylab = "P(Y = 57 | theta)")
+```
+
+
+
+```{r bayes}
+sum(prob)
+# P(theta | Y = 57)
+prob_c <- c(0,0,0,0,0,0,0,0,0,0,0)
+for (i in 1:11)
+{
+prob_c[i] <- prob[i] * (1/11) / sum(prob)
+}
+prob_c
+```
+
+## Part C
+
+```{r part c}
+plot(x = theta, y = prob_c, ylab = "P(theta | Y = 57)")
+```
+
+
+## Part D
+```{r part d}
+theta_cont <- seq(from = 0, to = 1, by = .001)
+prob_cont <- c()
+for (i in theta_cont)
+{
+p <- i^57 * (1-i)^43
+prob_cont <- append(prob_cont, p)
+}
+prob_cont
+```
+
+
+```{r}
+plot(x = theta_cont, y = prob_cont, ylab = "P(Y = 57 | theta)")
+```
+
+## Part E
+
+```{r part e}
+x = seq(0,1, by = .001)
+plot(x, dbeta(x, 58, 44), ylab="density", type ="l", col=4)
+```
+
+They all appear to be similar beta distributions but scaled differently. Plot C is a posterior with the prior being uniform probability of each theta occuring. Plot B has no prior information given to us. Plot D and plot E should be the exact same beta distribution but scaled differently. Plot D uses the prior of uniform pdf for theta, whereas E is the true posterior distribution.
