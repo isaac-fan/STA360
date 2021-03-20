@@ -1,0 +1,293 @@
+---
+title: 'Lab 8: Gibbs Sampling'
+author: "Isaac Fan"
+date: "3/19/2021"
+header-includes: 
+  - \def\bs{\boldsymbol}
+  - \def\iid{\overset{iid}{\sim}}
+  - \def\lb{\left\{}
+  - \def\rb{\right\}}
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(coda)
+library(ggplot2)
+
+```
+
+```{r}
+library(readr)
+mystery <- read_csv("C:/Users/isaac/Downloads/mystery.csv")
+```
+
+
+\section*{Preliminaries}
+Please turn in a pdf copy of the RMD document by Friday, March 26 at 11:59 PM. Only exercises 2.1, 2.2, and 2.3 will be graded (for completion), but you should try all of the exercises (especially example 3). Any derivations can be submitted by taking a picture or scan of written work. You will have most of the lab to work on the exercises and to ask questions. 
+
+
+\section*{Introduction}
+Suppose we have a random vector $\bs X = (X_1, \dots, X_p)^T$ and we want to generate samples from its joint distribution. The \textit{Gibbs Sampler} is a Markov process which utilizes sampling from specific conditional distributions, termed \textit{full conditionals}, to sample from a target joint distribution. Under certain regularity conditions, which are satisfied by all of the examples below (and most likely all the examples you'll see in class), the Gibbs sampler is a stationary Markov process. In other words, iteratively sampling from the full conditional distributions of $\bs X$ is equivalent to generating a sample from the joint distribution of $\bs X$. 
+
+Contrary to some of the Monte Carlo methods you have seen so far, samples from the Gibbs sampler are correlated. This means that we need to use diagnostics, such as ACF plots, effective sample size, and traceplots, to gauge the quality of your sample. Another consideration is that you need to sample from the full conditional distributions themselves. Thinking about these full conditional distributions can be complicated as they require fully understanding the \textit{structure} of a model. Fortunately, once you understand the model's structure, the full conditional derivations tend to follow from some of the derivations you have done on past homework assignments and in class. 
+
+In this lab, we'll work through three separate examples. Note that only example 3 involves a Bayesian model. This is by design, as Gibbs sampling was invented to sample from arbitrary joint distributions. 
+
+\section*{Example 1: Bivariate Normal}
+Consider the bivariate random vector $(x,y)$ with distribution
+\begin{align*}
+    x  & \sim \mathcal{N}(0,1); \\
+    y \mid x & \sim \mathcal{N}(\rho x, 1 - \rho^2)
+\end{align*}
+for some $\rho \in (-1, 1)$. 
+
+\subsection*{Exercise 1.1}
+\begin{enumerate}
+    \item Derive the full conditional distribution for $y|x$.
+    
+    
+    \item Derive the full conditional distribution for $x|y$.
+    
+    
+\end{enumerate}
+
+\subsection*{Exercise 1.2}
+What is the marginal distribution for $y$? \textit{Hint: you don't have to do an integral.}
+
+\section*{Example 2: Trivariate Poisson-Gamma}
+Let $(x,y,z)$ be a trivariate random vector with distribution
+\begin{align*}
+    x & \sim \text{Gamma}(a,b); \\
+    y \mid x & \sim \text{Exp}(x); \\
+    z \mid x,y & \sim \text{Poisson}(y)
+\end{align*}
+for some $a,b>0$. 
+\subsection*{Exercise 2.1}
+\begin{enumerate}
+  \item Derive the full conditional distribution for $z \mid x, y$.
+
+
+    
+  \item Derive the full conditional distribution for $y \mid x, z$.
+
+
+    
+  \item Derive the full conditional distribution for $x \mid y, z$. 
+
+
+\end{enumerate}
+
+\subsection*{Exercise 2.2}
+Using the skeleton code in the RMD document, write a Gibbs sampler for sampling from $p(x,y,z)$. Run the Gibbs sampler for $R = 10000$ iterations with $a = 5$ and $b = 2$. 
+
+```{r gibbs}
+trivGibbs <- function(R, a, b) {
+  # R = number of iterations
+  # a,b = hyperparameters for x
+  
+  # storage and initialization
+  x = rep(1, R)
+  y = rep(1, R)
+  z = rep(1, R)
+  
+  # sample from the full conditionals
+  for (j in 2:R) {
+    # sample from z | x, y
+    z[j] <- rpois(1, y[j-1])
+    # sample from y | x, z
+    y[j] <- rgamma(1, z[j] + 1, x[j-1] + 1) 
+    # sample from x | y, z
+    x[j] <- rgamma(1, a + 1, y[j] + b)  
+  }
+  
+ return(list(x = x, y = y, z = z)) 
+  
+}
+
+g <- trivGibbs(10000, 5, 2)
+```
+
+Report posterior means and credible intervals, and make histograms for $x$, $y$, and $z$.
+
+```{r}
+#Mean, Credible Intervals, and Histogram for X
+mean(g$x)
+c(mean(g$x) - 1.96 * sd(g$x), mean(g$x) + 1.96 * sd(g$x))
+hist(g$x)
+
+#Mean, Credible Intervals, and Histogram for Y
+mean(g$y)
+c(mean(g$y) - 1.96 * sd(g$y), mean(g$y) + 1.96 * sd(g$y))
+hist(g$y)
+
+#Mean, Credible Intervals, and Histogram for Z
+mean(g$z)
+c(mean(g$z) - 1.96 * sd(g$z), mean(g$z) + 1.96 * sd(g$z))
+hist(g$z)
+```
+
+
+\subsection*{Exercise 2.3}
+
+For $x$, $y$, and $z$, 
+
+1. Calculate the effective sample size.
+
+```{r}
+# ESS for X
+effectiveSize(g$x)
+
+# ESS for Y
+effectiveSize(g$y)
+
+# ESS for Z
+effectiveSize(g$z)
+```
+    
+2. Create traceplots.
+
+```{r}
+# traceplot for X
+ggplot(data = data.frame(g), aes(x = 1:length(x), y = x)) + geom_line() + labs(x = "Time", y = "X", title = "Traceplot for the Posterior of X")
+
+# traceplot for Y
+ggplot(data = data.frame(g), aes(x = 1:length(y), y = y)) + geom_line() + labs(x = "Time", y = "Y", title = "Traceplot for the Posterior of Y")
+
+# traceplot for Z
+ggplot(data = data.frame(g), aes(x = 1:length(z), y = z)) + geom_line() + labs(x = "Time", y = "Z", title = "Traceplot for the Posterior of Z")
+```
+
+    
+3. Create ACF plots.
+    
+    
+```{r}
+# ACF plot of X
+acf(g$x)
+
+# ACF plot of Y
+acf(g$y)
+
+# ACF plot of Z
+acf(g$z)
+
+```
+
+\end{enumerate}
+
+\section*{Example 3: Normal Mixture Model Posterior Distribution}
+Let 
+\begin{equation} \label{eq : ys}
+    y_1, \dots, y_n \mid \pi, \mu_1, \mu_2 \iid \text{NM}(\pi, \mu_1, \mu_2, 1),
+\end{equation}
+a \textbf{normal mixture model} with density
+    $$f(y) = \pi \lb \left(2 \pi \right)^{-1/2} e^{- \frac{1}{2}(y - \mu_1)^2} \rb  + (1 - \pi)\lb \left(2 \pi \right)^{-1/2} e^{- \frac{1}{2}(y - \mu_2)^2} \rb$$
+for $y \in \mathbb{R}$. We assign the following priors for $\pi, \mu_1, \mu_2$:
+\begin{align}
+    \pi & \sim \textrm{Beta}(a,b); \\
+    \mu_j & \sim \mathcal{N}(\theta_j, \tau_j^2); \\
+\end{align}
+with independence structure
+$$p(\pi, \mu_1, \mu_2) = p(\pi)p(\mu_1) p(\mu_2).$$
+
+The joint probability density function of $\bs (y_1, \dots, y_n)^T \mid \pi, \mu_1, \mu_2$ is very complicated. An equivalent model to (\ref{eq : ys}) is formulated in terms of pairs $(y_i, z_i)$ such that
+\begin{align}
+    z_1, \dots, z_n \mid \pi, \mu_1, \mu_2& \iid \text{Bernoulli}(\pi) \\
+    y_i \mid z_i, \pi, \mu_1, \mu_2 & \overset{ind}{\sim}\mathcal{N}(\mu_{z_i}, 1) \textrm{ for } i = 1, \dots, n.
+\end{align}
+In other words, when $z_i = 1$, $y_i$ is sampled from the first normal distribution in the mixture. When $z_i = 0$, $y_i$ is sampled from the second normal distribution. As it turns out, the introduction of the latent $z_i$ variables leads to a straightforward Gibbs sampler for the distribution of $\pi, \mu_1, \mu_2 \mid \bs y$. 
+
+As you will see, these latent variables greatly reduce the complexity in our model when we condition on them. For example, $p(\mu_1 \mid \bs y, \pi, \mu_2)$ would be very difficult to derive due to the complicated likelihood function. However, $p(\mu_1 \mid \bs y, \bs z, \pi, \mu_2)$ almost trivially follows from some of the derivations you've seen in class. So, our strategy to sample from $p(\mu_1, \mu_2, \pi \mid y)$ is to sample from $p(\mu_1, \mu_2, \pi, \bs z \mid y)$ and then simply discard the $\bs z$ samples.
+
+While this is very convenient, there is a catch: $\bs z$ is never observed. In other words, the vector $\bs z$ is treated as another unknown parameter in this model, where $\bs z \in \lb 0, 1 \rb^n$. Therefore, we also have to derive a full conditional for $\bs z$. With this in mind, we can now derive the Gibbs sampler.
+
+\subsection*{Exercise 3.1}
+Derive the full conditional distributions for 
+\begin{enumerate}
+    \item $p(z_i \mid \bs y, z_{-i}, \pi, \mu_1, \mu_2)$. \textit{Hint: there is lots of conditional independence in this model. Also, remember that $z_i \in \left\{0,1\right\}$.}
+    
+    \item $p(\mu_1 \mid \bs y, \bs z, \pi, \mu_2).$
+    
+    
+    \item $p(\mu_2 \mid \bs y, \bs z, \pi, \mu_1).$
+    
+    
+    \item $p(\pi \mid \bs y, \bs z, \mu_1, \mu_2).$
+ 
+ 
+\end{enumerate}
+
+\subsection*{Exercise 3.2}
+Write a Gibbs sampler to sample from $p(\mu_1, \mu_2, \pi, \bs z \mid \bs y)$ using the skeleton code provided in the RMD document.
+
+
+```{r}
+mixGibbs <- function(R, a, b, theta_1, tau_1, theta_2, tau_2, y) {
+  # R = number of iterations
+  # a,b = prior parameters for pi
+  # theta_1, tau_1 = prior parameters for mu_1
+  # theta_2, tau_2 = prior parameters for mu_2
+  # y = data
+  
+  
+  # storage and initialization
+  mu_1 <- rep(0, R)
+  mu_2 <- rep(0, R)
+  pi <- rep(0.5, R)
+  
+  # sample size
+  n <- length(y)
+  
+  # sampling
+  for (j in 2:R) {
+    # sample z 
+  
+    
+    
+    
+    # sample mu_1
+  
+    
+    
+    # sample mu_2
+  
+    
+    
+    # sample pi
+  
+    
+    
+  }
+  
+ return(list(mu_1 = mu_1, mu_2 = mu_2, pi = pi)) 
+  
+}
+```
+
+
+\subsection*{Exercise 3.3}
+Load the data \texttt{mystery.csv} and use your Gibbs sampler to sample from $p(\mu_1, \mu_2, \pi, \bs z \mid \bs y)$ with $\theta_1 = \theta_2 = 0$, $\tau_1 = \tau_2 = 3.5$. Create histograms for the $\mu_1, \mu_2$ and $\pi$ samples and report posterior mean estimates. 
+
+
+```{r}
+# loading data
+y <- read.csv("mystery.csv")
+y <- y$x
+
+
+```
+
+```{r}
+# histograms
+
+
+
+```
+
+```{r}
+# posterior means
+
+
+
+```
