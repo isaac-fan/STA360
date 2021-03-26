@@ -1,6 +1,6 @@
 ---
 title: 'Lab 8: Gibbs Sampling'
-author: "Isaac Fan"
+author: ""
 date: "3/19/2021"
 header-includes: 
   - \def\bs{\boldsymbol}
@@ -265,29 +265,3 @@ mixGibbs <- function(R, a, b, theta_1, tau_1, theta_2, tau_2, y) {
 }
 ```
 
-
-\subsection*{Exercise 3.3}
-Load the data \texttt{mystery.csv} and use your Gibbs sampler to sample from $p(\mu_1, \mu_2, \pi, \bs z \mid \bs y)$ with $\theta_1 = \theta_2 = 0$, $\tau_1 = \tau_2 = 3.5$. Create histograms for the $\mu_1, \mu_2$ and $\pi$ samples and report posterior mean estimates. 
-
-
-```{r}
-# loading data
-y <- read.csv("mystery.csv")
-y <- y$x
-
-
-```
-
-```{r}
-# histograms
-
-
-
-```
-
-```{r}
-# posterior means
-
-
-
-```
